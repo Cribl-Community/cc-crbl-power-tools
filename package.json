@@ -33,7 +33,7 @@
     "vite": "^8.2.0",
     "vitest": "^3.2.7"
   },
-  "displayName": "CC Cribl Power Tools",
+  "displayName": "Cribl Power Tools",
   "tags": {
     "product": [
       "stream",
