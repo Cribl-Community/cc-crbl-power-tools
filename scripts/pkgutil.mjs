@@ -42,7 +42,7 @@ async function runNpmBuild(cwd) {
 let packageInProgress = false;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const CRIBL_CREATE_APP_SCRIPT_VERSION = '0.3.0';
+const CRIBL_CREATE_APP_SCRIPT_VERSION = '0.5.0';
 
 async function pathExists(filePath) {
   try {
@@ -101,6 +101,7 @@ export async function createAppPack(dev = false) {
   const distDir = join(rootDir, 'dist');
   const proxiesPath = join(rootDir, 'config', 'proxies.yml');
   const policiesPath = join(rootDir, 'config', 'policies.yml');
+  const readmePath = join(rootDir, 'README.md');
 
   if (await pathExists(buildDir)) {
     await rm(buildDir, { recursive: true });
@@ -125,18 +126,26 @@ export async function createAppPack(dev = false) {
     await cp(policiesPath, join(buildDir, 'default', 'policies.yml'));
   }
 
+  if (await pathExists(readmePath)) {
+    await cp(readmePath, join(buildDir, 'README.md'));
+  }
+
   const rootPackageJson = JSON.parse(
     await readFile(join(rootDir, 'package.json'), 'utf8')
   );
 
   const packageInfo = Object.fromEntries(
-    ['name', 'version', 'displayName', 'description', 'author', 'license', 'cribl']
+    ['name', 'version', 'displayName', 'description', 'author', 'license', 'cribl', 'tags']
       .filter((k) => rootPackageJson?.[k])
       .map((k) => [k, rootPackageJson[k]])
   );
   packageInfo.cribl = {
     ...(packageInfo.cribl ?? {}),
     createAppScriptVersion: CRIBL_CREATE_APP_SCRIPT_VERSION,
+  };
+  packageInfo.tags = {
+    ...(packageInfo.tags ?? {}),
+    product: packageInfo.tags?.product ?? [],
   };
 
   if (dev && packageInfo.name) {
