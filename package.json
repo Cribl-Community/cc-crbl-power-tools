@@ -1,7 +1,7 @@
 {
   "name": "cc-crbl-power-tools",
   "private": true,
-  "version": "1.1.5",
+  "version": "1.2.0",
   "description": "A collection of power tools for managing and inspecting your Cribl deployment",
   "type": "module",
   "license": "Apache-2.0",
