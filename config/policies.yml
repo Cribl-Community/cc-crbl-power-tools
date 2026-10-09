@@ -15,8 +15,9 @@ policies:
     # GET (get one + read ACL/teams), PATCH (update breakerRulesets),
     # POST (apply user + team ACL changes)
     actions: ['GET', 'PATCH', 'POST']
-  # Event Breaker rulesets (the values of a dataset's breakerRulesets field),
-  # read in the search group context to populate the datatype-ruleset picker.
+  # Event Breaker rulesets (the values of a dataset's breakerRulesets field), read in a
+  # group context to populate the ruleset pickers. Used by Workflow 1 in the
+  # default_search context and by Workflow 7 in a worker-group context.
   - object: '/m/:gid/lib/breakers'
     actions: ['GET']
 
@@ -74,7 +75,10 @@ policies:
   - object: '/m/:gid/system/inputs'
     actions: ['GET', 'POST'] # list Sources, create Sources (import)
   - object: '/m/:gid/system/inputs/*'
-    actions: ['PATCH'] # assign the pre-processing Pipeline on a Source
+    # PATCH assigns the pre-processing Pipeline on a Source (Workflow 4) and updates a
+    # Source's Event Breaker rulesets (Workflow 7). GET re-reads one Source's full
+    # config so Workflow 7 can build a lossless full-object PATCH body.
+    actions: ['GET', 'PATCH']
   # /m/:gid/system/outputs GET+POST is already declared above (Lake destinations);
   # add PATCH on the :id child for assigning the post-processing Pipeline.
   - object: '/m/:gid/system/outputs/*'

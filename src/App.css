@@ -630,6 +630,11 @@ body {
   background-color: token('color.background.danger.subtle');
 }
 
+/* A row that will not be written: an ineligible Source type, or a no-op change. */
+.data-table tr.row-skipped {
+  opacity: 0.6;
+}
+
 .col-check,
 .col-status {
   width: 36px;
@@ -920,6 +925,13 @@ body {
   border-radius: token('radius.md');
   border: 1px solid transparent;
   white-space: nowrap;
+}
+
+/* Wraps an ordered list of ruleset chips inside a table cell. */
+.chip-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: token('spacing.xs');
 }
 
 .diff-chip-current {

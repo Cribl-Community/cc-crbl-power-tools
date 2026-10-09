@@ -10,12 +10,20 @@ import {
   Packs,
   Pipeline,
   SearchOutlined,
+  Sources,
   Upload,
   type SvgIcon,
 } from '@capra/icons';
 
 /** The top-level sections of the app. Identical to App's view state machine. */
-export type NavKey = 'search' | 'lake' | 'packs' | 'assign' | 'import' | 'functions';
+export type NavKey =
+  | 'search'
+  | 'lake'
+  | 'packs'
+  | 'assign'
+  | 'import'
+  | 'functions'
+  | 'sources';
 
 interface NavItem {
   key: NavKey;
@@ -45,6 +53,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Configuration',
     items: [
       { key: 'assign', name: 'Pipeline assign', Icon: Pipeline },
+      { key: 'sources', name: 'Source bulk editor', Icon: Sources },
       { key: 'functions', name: 'Function finder', Icon: Filter },
       { key: 'import', name: 'Config import', Icon: Upload },
       { key: 'packs', name: 'Pack copy', Icon: Packs },

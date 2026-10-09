@@ -13,7 +13,8 @@
     "test": "vitest run",
     "preview": "vite preview",
     "package": "npm run build && node scripts/package.mjs",
-    "proxies:gen": "node scripts/gen-proxies.mjs"
+    "proxies:gen": "node scripts/gen-proxies.mjs",
+    "breakers:gen": "node scripts/gen-breaker-types.mjs"
   },
   "dependencies": {
     "@capra/core": "^1.11.1",

@@ -1,7 +1,7 @@
 # CC Cribl Power Tools
 
-A Cribl App for bulk operations on datasets, packaged for install into a Cribl
-workspace. It provides three workflows:
+A Cribl App for bulk operations on datasets and worker-group configuration,
+packaged for install into a Cribl workspace. It provides these workflows:
 
 - **Search datasets — bulk edit:** update datatype (Event Breaker) rulesets and
   share permissions across many Search datasets at once.
@@ -10,6 +10,14 @@ workspace. It provides three workflows:
 - **Pack copy — across workspaces:** copy one or more packs from a worker group in
   this workspace to a worker group in a *different* workspace of the same
   Cribl.Cloud organization, skipping any that already exist.
+- **Pipelines — bulk assign:** assign or clear the pre-/post-processing pipeline on
+  many Sources or Destinations in a worker group.
+- **Configs — bulk import:** import Pipelines, Sources, or Destinations into a
+  worker group from JSON files, skipping conflicts.
+- **Function finder:** search every function configured in every pipeline across
+  all worker groups (read-only).
+- **Source bulk editor:** assign or edit Event Breaker rulesets — and the Event
+  Breaker buffer timeout — on many Sources in a worker group at once.
 
 Every write is gated behind a preview and an explicit confirmation, a global
 **Dry run** toggle lets you validate without writing, and a single failure never
@@ -125,12 +133,49 @@ auto-authenticates), it needs an **Organization API Credential**:
 > workspace's worker groups don't load and you see a "not declared in proxies.yml"
 > message, that host hasn't been added yet.
 
+### Workflow 7 — Sources: bulk edit Event Breakers
+
+Assigns or edits **Event Breaker rulesets** on many Sources in one worker group.
+Ruleset **order matters** — Cribl applies a Source's rulesets in order and the first
+match wins — so the picker preserves the order you choose.
+
+1. **Pick a worker group.** The app loads that group's Sources and its available
+   Event Breaker rulesets (`/m/:gid/lib/breakers`).
+2. **Select Sources.** Filter by id/type substring and by exact type, then
+   multi-select, or use **Select filtered** / **Clear**. The table shows each
+   Source's id, type, enabled state, current rulesets (in order), and current
+   buffer timeout.
+3. **Choose an edit mode:**
+   - **Replace** — the selected rulesets become the whole list.
+   - **Append** — add selected rulesets after the existing ones (deduped; existing
+     entries keep their position, so prior precedence is preserved).
+   - **Remove selected** — remove the selected rulesets, keeping the rest in order.
+   - **Clear all** — remove every ruleset from the Source.
+4. **Optionally set the buffer timeout** (`staleChannelFlushMs`, 10–43,200,000 ms).
+   It is applied only to Source types that support the field.
+5. **Preview** the before/after diff per Source. Rows that would not change, and
+   Sources whose type can't be edited, are marked **skipped** with the reason.
+6. **Apply.** Each Source is re-read (`GET`) and written back with a full-object
+   `PATCH` so only the Event Breaker fields change — nothing else is reset.
+7. **Commit & deploy** are **opt-in**, with your own commit message.
+
+**Only Source types that support Event Breakers can be selected.** That list is
+generated from the bundled OpenAPI spec rather than hardcoded (21 of 71 Source
+types today — e.g. `tcp`, `file`, `s3`, `splunk_hec`, `collection`); ineligible
+Sources appear disabled with the reason shown. Regenerate after refreshing the
+spec with `npm run breakers:gen`.
+
+> **Commit or the change won't stick.** If you leave **Commit the worker group**
+> off, the API write succeeds but the group's config is left uncommitted — commit
+> it yourself in Cribl for the change to persist.
+
 ### Dry run
 
-All three workflows have a **Dry run** switch. When enabled, the app runs the full
+Every workflow has a **Dry run** switch. When enabled, the app runs the full
 preview/confirm/progress flow but makes **no write calls** — use it to validate a
 batch before committing. (For Pack copy, dry run still performs all reads and
-conflict checks, but exports/uploads/installs nothing.)
+conflict checks, but exports/uploads/installs nothing.) In the **Source bulk
+editor** dry run is **on by default**.
 
 ---
 
@@ -143,7 +188,19 @@ npm install      # install dependencies
 npm run dev      # start the Vite dev server (http://localhost:5173)
 npm run build    # type-check (tsc -b) and build
 npm run lint     # oxlint
+npm test         # run the unit tests (vitest)
 npm run preview  # preview the production build
+```
+
+Unit tests cover the pure logic modules and the API layer (with `fetch` mocked);
+they live next to the code as `*.test.ts`. They are typechecked by
+`tsconfig.test.json` but excluded from `tsconfig.app.json`, so they never ship in
+the packaged app.
+
+Code generated from the bundled OpenAPI spec:
+
+```bash
+npm run breakers:gen   # regenerate src/lib/breakerCapableTypes.ts from openapi.json
 ```
 
 The app reads the Cribl API base from `window.CRIBL_API_URL`, which is only
@@ -234,6 +291,12 @@ see exactly which resources it uses at install time. It calls:
   creation in Workflow 2.
 - Source packs (`/m/:gid/packs`, `/m/:gid/packs/:id/export`) in the current
   workspace — the source side of Workflow 3.
+- Group Pipelines (`/m/:gid/pipelines`) and Sources (`/m/:gid/system/inputs`) —
+  listed by Workflows 4–7, created by Workflow 5, and `PATCH`ed by Workflows 4
+  and 7. Workflow 7 additionally needs **`GET` on `/m/:gid/system/inputs/*`** to
+  re-read a single Source before writing it back losslessly.
+- Event Breaker rulesets in a worker-group context (`/m/:gid/lib/breakers`) — the
+  ruleset picker in Workflow 7.
 
 Workflow 3 also reaches **external** Cribl.Cloud hosts, declared in
 `config/proxies.yml` (admins see these at install time):
@@ -254,3 +317,26 @@ automatically and are not declared in `policies.yml`.
 If a declared collection path is missing its wildcard/detail counterpart, list
 results can come back empty — keep `config/policies.yml` in sync when adding new
 calls.
+
+---
+
+## Known limitations
+
+- **Worker groups only, not Edge fleets.** Group pickers list Stream worker groups
+  (`/master/groups?product=stream`). Edge fleets are not offered anywhere in the app.
+- **Source bulk editor** writes one Source at a time (two API calls each: a read and
+  a `PATCH`) and does not run them in parallel, which keeps per-item error reporting
+  exact but makes very large batches slow. The platform proxy rate-limits an app to
+  100 requests/minute; `429` responses are retried up to 3 times with backoff, after
+  which the affected Source is reported as failed and the rest of the batch continues.
+- **Source eligibility is spec-derived, not live.** The editable-type list comes from
+  the `openapi.json` bundled at build time, so a Source type added by a newer Cribl
+  version won't be offered until the spec is refreshed and `npm run breakers:gen` is
+  re-run. The API remains the source of truth; a server-side rejection is reported
+  per-row.
+- **Previewed values are what get written.** Apply writes the ruleset list shown in
+  the preview. If someone else edits the same Source between preview and apply, their
+  change to `breakerRulesets` is overwritten (all other fields are preserved, since
+  each Source is re-read immediately before the write).
+- **Committing is opt-in.** Leaving commit off means the write lands but the worker
+  group stays uncommitted.

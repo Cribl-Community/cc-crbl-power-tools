@@ -7,6 +7,7 @@ import { PackCopy } from './workflows/PackCopy';
 import { PipelineAssign } from './workflows/PipelineAssign';
 import { ConfigImport } from './workflows/ConfigImport';
 import { FunctionFinder } from './workflows/FunctionFinder';
+import { SourceBulkEdit } from './workflows/SourceBulkEdit';
 
 type ThemeKey = 'capra' | 'terminal' | 'mario' | 'doom';
 
@@ -38,6 +39,11 @@ const DASHBOARDS: Record<NavKey, { title: string; description: string }> = {
     title: 'Functions — finder',
     description:
       'Search every function configured in every pipeline across all worker groups, and see exactly where each one lives. Matches against the function type (e.g. sampling, eval, mask) and its description — plain substring by default, or a regular expression when you toggle Regex. Each result shows the worker group, pipeline, position, and whether the function is currently enabled or disabled. Toggle “Enabled only” to answer questions like “which pipelines have sampling active right now?”. This is a read-only tool — it never changes any pipeline or function.',
+  },
+  sources: {
+    title: 'Sources — bulk edit Event Breakers',
+    description:
+      'Assign or edit Event Breaker rulesets on many Sources in a worker group at once. Pick a worker group, filter and select the Sources to change, then choose an edit mode — Replace, Append, Remove selected, or Clear all. Ruleset order matters, so the picker keeps your chosen order (Cribl applies them in order and the first match wins). You can also bulk-set the Event Breaker buffer timeout. Only Source types that support Event Breakers can be selected; the rest are shown disabled with the reason. Dry run is on by default, and every change is previewed as a before/after diff before anything is written. Committing and deploying the group are opt-in.',
   },
   assign: {
     title: 'Pipelines — bulk assign',
@@ -109,6 +115,8 @@ function App() {
             <PipelineAssign />
           ) : tab === 'functions' ? (
             <FunctionFinder />
+          ) : tab === 'sources' ? (
+            <SourceBulkEdit />
           ) : (
             <ConfigImport />
           )}
